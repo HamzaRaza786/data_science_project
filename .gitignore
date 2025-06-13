@@ -1,3 +1,5 @@
 # Virtual Environment
 venv/
+
+# Notebook Checkpoints
 .ipynb_checkpoints/

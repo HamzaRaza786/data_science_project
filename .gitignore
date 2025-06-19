@@ -3,3 +3,5 @@ venv/
 
 # Notebook Checkpoints
 .ipynb_checkpoints/
+data_science_project/
+catboost_info/

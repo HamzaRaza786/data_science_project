@@ -77,3 +77,4 @@ traitlets==5.14.3
 tzdata==2025.2
 wcwidth==0.2.13
 widgetsnbextension==4.0.14
+streamlit==1.28.0

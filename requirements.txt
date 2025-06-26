@@ -40,12 +40,12 @@ numba==0.61.2
 numpy==1.26.4
 openpyxl==3.1.5
 osqp==1.0.4
-packaging==25.0
+packaging
 pandas==2.2.3
 parso==0.8.4
 patsy==1.0.1
 pexpect==4.9.0
-pillow==11.2.1
+pillow
 platformdirs==4.3.8
 prompt_toolkit==3.0.51
 psutil==7.0.0

@@ -1,6 +1,7 @@
 # Virtual Environment
 venv/
 .venv/
+myenv/
 # Notebook Checkpoints
 .ipynb_checkpoints/
 data_science_project/

@@ -7,8 +7,15 @@ import matplotlib.pyplot as plt
 
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_absolute_error, r2_score, pairwise_distances
-from sklearn.ensemble import HistGradientBoostingRegressor, GradientBoostingRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor, GradientBoostingRegressor, RandomForestRegressor
 from lightgbm import LGBMRegressor
+from xgboost import XGBRegressor
+from catboost import CatBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
 from sklearn.model_selection import train_test_split
 from pandas.tseries.offsets import QuarterEnd
 
@@ -164,7 +171,7 @@ def run_page():
 
     # --- Churn Modeling Section ---
     st.subheader(f"Predicted Relative Churn for {selected_fund}")
-    selected_model_name = st.selectbox("Model Type", ["HistGradientBoosting", "LGBMRegressor", "GradientBoosting"])
+    selected_model_name = st.selectbox("Model Type", ["HistGradientBoosting", "LGBMRegressor", "GradientBoosting", "Ridge", "DecisionTree", "RandomForest", "SVR", "MLPRegressor", "KernelRidge", "XGBRegressor", "CatBoostRegressor"])
 
     # Prepare data for churn prediction
     churn_df = df.dropna(subset=['Zusatzbeitrag', 'competitor_contrib', 'churn_rel'])
@@ -182,15 +189,28 @@ def run_page():
         # Choose model based on user selection
         models = {
             "HistGradientBoosting": HistGradientBoostingRegressor(
-                l2_regularization=0,
                 learning_rate=0.05,
                 max_depth=7,
-                max_iter=100
+                max_iter=100,
+                max_bins=100,  # Optimal bin count
+                early_stopping=True,  # Automatic iteration control
+                l2_regularization=0.1  # Prevent overfitting
+
             ),
             "LGBMRegressor": LGBMRegressor(),
             "GradientBoosting": GradientBoostingRegressor(
                 n_estimators=200, max_depth=5, learning_rate=0.1
             ),
+            "Ridge": Ridge(max_iter=10000),
+            "DecisionTree": DecisionTreeRegressor(),
+            "RandomForest": RandomForestRegressor(),
+            "SVR": SVR(),
+            "MLPRegressor": MLPRegressor(max_iter=500),
+            "KernelRidge": KernelRidge(),
+            "XGBRegressor": XGBRegressor(verbosity=0, n_estimators=1000, random_state=42),
+            "LGBMRegressor": LGBMRegressor(),
+            "CatBoostRegressor": CatBoostRegressor(verbose=0)
+
         }
 
         model = models[selected_model_name]

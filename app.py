@@ -3,7 +3,7 @@ import pickle
 import streamlit as st
 import pandas as pd
 import altair as alt
-from ml_churn_code import run_page  # dein bestehendes Predictive-Model-Tab
+from ml_churn_code import run_page
 
 # --- Streamlit Page Config ---
 st.set_page_config(page_title="GKV Churn Dashboard", layout="wide")
@@ -35,7 +35,6 @@ def load_predictive_model():
         dv, model = pickle.load(f)
     return dv, model
 
-# Daten und Modell einmal laden
 df           = load_data()
 causal_df    = load_causal_data()
 dv, model    = load_predictive_model()
@@ -159,7 +158,6 @@ elif page == "Single Fund Prediction":
         submit    = st.form_submit_button(label="Predict")
 
     if submit:
-        # echte Modell-Vorhersage
         if dv is None or model is None:
             st.error("Predictive model not loaded.")
         else:

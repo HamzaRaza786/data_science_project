@@ -8,7 +8,6 @@ st.set_page_config(page_title="GKV Churn Dashboard", layout="wide")
 # --- DATENLADE-FUNKTION ---
 @st.cache_data
 def load_data():
-    # Echte, zusammengeführte Daten für EDA
     return pd.read_csv("ml_code/merged_data.csv")
 
 @st.cache_data

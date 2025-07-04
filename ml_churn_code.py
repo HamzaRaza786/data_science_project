@@ -15,7 +15,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.svm import SVR
 from sklearn.neural_network import MLPRegressor
 from sklearn.kernel_ridge import KernelRidge
-from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.linear_model import Ridge
 from sklearn.model_selection import train_test_split
 from pandas.tseries.offsets import QuarterEnd
 
@@ -25,14 +25,16 @@ from pandas.tseries.offsets import QuarterEnd
 def load_and_prepare_data() -> pd.DataFrame:
     df = pd.read_csv('./ml_code/merged_data.csv')  # Replace with your path
     df = df.sort_values(['Krankenkasse', 'Jahr', 'Quartal'])
+    df['Risikofaktor'] = pd.to_numeric(df['Risikofaktor'], errors='coerce')
+    df['Marktanteil Mitglieder'] = pd.to_numeric(df['Marktanteil Mitglieder'], errors='coerce')
     df['date'] = pd.to_datetime(df['Jahr'].astype(str) + 'Q' + df['Quartal'].astype(str))
     df.set_index('date', inplace=True)
     df = filter_funds_with_2025_q1(df)
     df['competitor_contrib'] = compute_competitor_contrib_knn(df)
-    print("competitor_contrib computed", df['competitor_contrib'])
     df = add_additional_features(df)
     return df
 
+# filter_funds_with_2025_q1 is used to filter the DataFrame to only include funds that have data for the first quarter of 2025.
 def filter_funds_with_2025_q1(df: pd.DataFrame) -> pd.DataFrame:
     required_quarter = pd.to_datetime("2025Q1")
     valid_funds = df[df.index == required_quarter]['Krankenkasse'].unique()
@@ -61,9 +63,6 @@ def compute_competitor_contrib_knn(df: pd.DataFrame) -> pd.Series:
 
             orig_idx = row['_orig_index']
             contrib_values[orig_idx] = mean_contrib
-
-            if row['Krankenkasse'] == 'techniker-krankenkasse (tk)':
-                print(top_k_indices, row['Mitglieder'], row['Zusatzbeitrag'], mean_contrib)
 
     # Return as Series with proper index matching df
     contrib_series = pd.Series(contrib_values, index=df.index)
@@ -172,16 +171,20 @@ def run_page():
     # --- Churn Modeling Section ---
     st.subheader(f"Predicted Relative Churn for {selected_fund}")
     selected_model_name = st.selectbox("Model Type", ["HistGradientBoosting", "LGBMRegressor", "GradientBoosting", "Ridge", "DecisionTree", "RandomForest", "SVR", "MLPRegressor", "KernelRidge", "XGBRegressor", "CatBoostRegressor"])
-
+    with_additional_features = st.checkbox("Use Additional Features", value=False)
     # Prepare data for churn prediction
-    churn_df = df.dropna(subset=['Zusatzbeitrag', 'competitor_contrib', 'churn_rel'])
+    features = ['Zusatzbeitrag', 'competitor_contrib']
+    if with_additional_features:
+        features.extend(['Risikofaktor', 'Marktanteil Mitglieder'])
+
+    churn_df = df.dropna(subset=features + ['churn_rel']).copy()
     fund_churn_df = churn_df[churn_df['Krankenkasse'] == selected_fund].copy()
 
     if fund_churn_df.empty:
         st.warning("No churn data available for the selected fund.")
     else:
         # Train-test split
-        features = ['Zusatzbeitrag', 'competitor_contrib', 'Zusatzbeitrag_prev', 'Zusatz_diff']
+        features.extend(['Zusatzbeitrag_prev', 'Zusatz_diff'])
         X = churn_df[features]
         y = churn_df['churn_rel']
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -208,7 +211,6 @@ def run_page():
             "MLPRegressor": MLPRegressor(max_iter=500),
             "KernelRidge": KernelRidge(),
             "XGBRegressor": XGBRegressor(verbosity=0, n_estimators=1000, random_state=42),
-            "LGBMRegressor": LGBMRegressor(),
             "CatBoostRegressor": CatBoostRegressor(verbose=0)
 
         }

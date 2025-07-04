@@ -11,7 +11,7 @@ st.set_page_config(page_title="GKV Churn Dashboard", layout="wide")
 # --- DATENLADE-FUNKTIONEN ---
 @st.cache_data
 def load_data():
-    path = "ml_code/merged_data.csv"
+    path = "data/preprocessed_for_ml_model.csv"
     if not os.path.exists(path):
         st.error(f"EDA file not found: {path}")
         return pd.DataFrame()
@@ -27,17 +27,17 @@ def load_causal_data():
 
 @st.cache_resource
 def load_predictive_model():
-    path = "ml_code/ml_churn_model.pkl"
+    path = "ml_model/predictive_model_with_additional_params.pkl"
     if not os.path.exists(path):
         st.error(f"Model file not found: {path}")
         return None, None
     with open(path, "rb") as f:
-        dv, model = pickle.load(f)
-    return dv, model
+       model = pickle.load(f)
+    return model
 
 df           = load_data()
 causal_df    = load_causal_data()
-dv, model    = load_predictive_model()
+model    = load_predictive_model()
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.title("Navigation")
@@ -48,7 +48,7 @@ page = st.sidebar.radio("Go to", [
     "Single Fund Prediction"
 ])
 st.sidebar.markdown("---")
-st.sidebar.write("© 2025 Your Group | GKV Churn")
+st.sidebar.write("© SoSe25 Data Science Project")
 
 # --- START SEITE ---
 if page == "Start":
@@ -150,23 +150,67 @@ elif page == "Single Fund Prediction":
     st.title("Single Fund Prediction")
     st.info("Enter the values for a single fund to receive a churn prediction.")
 
+    # Calculate column averages for defaults (handle missing df gracefully)
+    if df is not None and not df.empty:
+        avg_beitrag    = float(df["Zusatzbeitrag"].mean())
+        df["Risikofaktor"] = pd.to_numeric(df["Risikofaktor"], errors="coerce")
+        avg_risiko     = float(df["Risikofaktor"].mean())
+        avg_mitglieder = int(df["Mitglieder"].mean())
+    else:
+        avg_beitrag, avg_jahr, avg_risiko, avg_mitglieder = 1.0, 1.0, 2023, 1.0, 10000
+
     with st.form(key="fund_input_form"):
-        beitrag   = st.number_input("Additional Contribution (%)", min_value=0.0, max_value=5.0, step=0.1)
-        jahr      = st.selectbox("Year", [2021, 2022, 2023, 2024])
-        risiko    = st.number_input("Morbidity Risk Factor", min_value=0.0, max_value=5.0, step=0.01)
-        mitglieder= st.number_input("Number of Members", min_value=1)
-        submit    = st.form_submit_button(label="Predict")
+        beitrag = st.number_input(
+            "Additional Contribution",
+            min_value=0.0, max_value=5.0, step=0.1, value=avg_beitrag
+        )
+        competitor_contribution = st.number_input(
+            "Competitor Contribution",
+            min_value=0.0, max_value=5.0, step=0.1, value=avg_beitrag
+        )
+        previous_contribution = st.number_input(
+            "Previous Additional Contribution",
+            min_value=0.0, max_value=5.0, step=0.1, value=avg_beitrag
+        )
+        risiko = st.number_input(
+            "Morbidity Risk Factor",
+            min_value=0.0, max_value=1.5, step=0.01, value=avg_risiko
+        )
+        mitglieder = st.number_input(
+            "Number of Members",
+            min_value=1, value=avg_mitglieder
+        )
+        submit = st.form_submit_button(label="Predict")
 
     if submit:
-        if dv is None or model is None:
+        if model is None:
             st.error("Predictive model not loaded.")
         else:
-            input_dict = {
+            input_df = pd.DataFrame([{
                 "Zusatzbeitrag": float(beitrag),
-                "Jahr":          jahr,
-                "Risikofaktor":  float(risiko),
-                "Mitglieder":    int(mitglieder)
-            }
-            X = dv.transform([input_dict])
-            y_pred = model.predict_proba(X)[0,1]
-            st.success(f"Churn Risk: {y_pred:.2%}")
+                "competitor_contrib": float(competitor_contribution),
+                "Risikofaktor": float(risiko),
+                "Mitglieder": int(mitglieder),
+                "Zusatzbeitrag_prev": float(previous_contribution),
+                "Zusatz_diff": float(beitrag) - float(competitor_contribution),
+            }])
+
+            y_pred = model.predict(input_df)[0]
+
+            # Compute average churn_rel from dataset
+            avg_churn = df["churn_rel"].mean()
+
+            # Interpretation based on predicted churn vs average
+            if y_pred < 0:
+                st.error(f"Churn Risk: {y_pred:.2f}% → These input will be **losing** customers.")
+            elif y_pred < avg_churn:
+                st.warning(f"Churn Risk: {y_pred:.2f}% → Gaining customers, but **below average** performance.")
+            else:
+                st.success(f"Churn Risk: {y_pred:.2f}% → These input will be **gaining** customers (above average).")
+            
+            df["churn_diff"] = (df["churn_rel"] - y_pred).abs()
+            closest_matches = df.sort_values(by="churn_diff").head(5)
+
+            # Display comparison table
+            st.subheader("Similar Historical Records For Churn")
+            st.dataframe(closest_matches[["Krankenkasse", "Jahr", "Quartal", "churn_rel"]].reset_index(drop=True))

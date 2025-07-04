@@ -23,7 +23,7 @@ from pandas.tseries.offsets import QuarterEnd
 
 @st.cache_data
 def load_and_prepare_data() -> pd.DataFrame:
-    df = pd.read_csv('./ml_code/merged_data.csv')  # Replace with your path
+    df = pd.read_csv('data/preprocessed_for_ml_model.csv')  # Replace with your path
     df = df.sort_values(['Krankenkasse', 'Jahr', 'Quartal'])
     df['Risikofaktor'] = pd.to_numeric(df['Risikofaktor'], errors='coerce')
     df['Marktanteil Mitglieder'] = pd.to_numeric(df['Marktanteil Mitglieder'], errors='coerce')
@@ -175,7 +175,7 @@ def run_page():
     # Prepare data for churn prediction
     features = ['Zusatzbeitrag', 'competitor_contrib']
     if with_additional_features:
-        features.extend(['Risikofaktor', 'Marktanteil Mitglieder'])
+        features.extend(['Risikofaktor', 'Mitglieder'])
 
     churn_df = df.dropna(subset=features + ['churn_rel']).copy()
     fund_churn_df = churn_df[churn_df['Krankenkasse'] == selected_fund].copy()
@@ -240,4 +240,4 @@ def run_page():
         # Display results in table
         columns_to_show = ['date', 'Zusatzbeitrag', 'competitor_contrib', 'churn_rel', f'predicted_churn_{selected_model_name}']
         st.subheader(f"Churn Predictions for {selected_fund} using {selected_model_name}")
-        st.dataframe(fund_churn_df[columns_to_show])
+        st.dataframe(fund_churn_df.sort_index(ascending=False)[columns_to_show])
